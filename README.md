@@ -15,9 +15,9 @@ including AccessionID, Title, Authors, PubMedID, Country, Collection_Date and Ta
 
 ## Prerequisites
 
-* NCBI blast+ (https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
-* BioPerl (http://bioperl.org/)
-* FASTA package (http://fasta.bioch.virginia.edu/fasta_www2/fasta_down.shtml)
+* [NCBI blast+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
+* [BioPerl](http://bioperl.org/)
+* [FASTA](http://fasta.bioch.virginia.edu/fasta_www2/fasta_down.shtml)
 
 ## Usage
 
@@ -37,9 +37,12 @@ perl Gene_to_Sequences.pl --man
 
 ``` 
 
+
 ## Authors
 
 * **Soo-Yon Rhee** - *Initial work* - [sooyonrhee](https://github.com/sooyonrhee)
+
+
 
 ## License
 
