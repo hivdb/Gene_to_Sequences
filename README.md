@@ -6,16 +6,16 @@ This package has been described in  the manuscript by Rhee, S-Y and Shafer, RW, 
 
 The package includes:
 
-1. GB_to_BLASTDB.pl 
+1. GB_to_BLASTDB.pl (a perl script)
 parses GenBank files, creates a fasta file with sequence headers containing GenBank annotations and
 converts the fasta file to a BLAST searchable databae.
 
-2. Gene_to_Sequences.pl
+2. Gene_to_Sequences.pl (a perl script)
 as the second part of the pipeline, it performs an amino acid to nucleotide sequence search for a gene
 and generates a file containing aligned full-length nucleotide sequences with associated GenBank annotations
 including AccessionID, Title, Authors, PubMedID, Country, Collection_Date and TaxonomyID
 
-3. Subtree_Sampling.Rmd 
+3. Subtree_Sampling.Rmd (a R markdown)
 samples subtype reference sequences from subtrees of a phylogenetic tree  
 [Usage guidelines for this R markdown](doc/Subtree_Sampling.md)
 
