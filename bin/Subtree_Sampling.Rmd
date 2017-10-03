@@ -1,0 +1,406 @@
+---
+title: "Sampling subtype reference sequences from subtrees of a phylogenetic tree"
+author: "Soo-Yon Rhee"
+date: "September 30, 2017"
+output: html_document
+---
+## Overviews
+
+This R script has been described in the manuscript by Rhee, S-Y and Shafer, RW, "Geographically-Stratified Representative HIV-1 Group M pol Subtype and Circulating Recombinant Form Sequences". For each fasta sequence file in a given directory, this script performs the followings: (1) calculates TN93 pairwise distances (PWDs);  (2) creates a neighbor joining tree with the PWD matrix and roots it at the midpoint; (3) traverses the tree from the root to leaves and partitioned it into subtrees having a local median PWD (MPWD) less than a cutoff; (4) then selects one sequence per country from each subtree. In the manuscript, 47% (0.47) of the ranked PWDs was used to define the maximum MPWD for subtrees.
+
+#### Usage
+
+To run the script using the default parameters
+
+Rscript -e "rmarkdown::render('Subtree_Sampling.Rmd')"  
+
+Rscript -e "rmarkdown::render('Subtree_Sampling.Rmd')" fastadir="in.fasta", outdir="out.trees", pwd_rank_cutff=0.47
+
+#### Input and the default values
+
+1. fastadir ("in.fasta" by default): directory where fasta sequence files are located. The name of each fasta file consists of subtype + ".txt". ie, 01_AE.txt, B.txt. The name of each sequence in a fasta file consists of sequenceid (in this case, accessionid), country (in two letter ISO code), collection year (YY), subtype delimited by "."
+
+2. outdir ("out.trees" by default): directory for saving output files including .tre, .pdf, and .txt of sampled sequences
+
+3. pwd_rank_cutff(0.47 by default): a node of which a local MPWD (MPWD of the node's children) is less than the global MPWD at the rank of this cutoff defined as a cluster (subtree)
+
+#### Output
+
+1. Subtree_Sampling.html
+
+2. results.summary.txt: lists number of clusters, number of sequences sampled so on.
+
+Files generated in outdir for each subtype:
+
+3. a tree of the entire sequences (.tre) (.pdf)
+
+4. a tree of the entire sequences with cluster ids defined by a cutoff (.tre)
+
+5. a fasta sequence file containing sampled sequences (.txt)
+
+
+#### Packages required
+
+"pandoc" should be installed:
+
+https://pandoc.org/installing.html
+
+R packages:
+
+rmarkdown, knitr, ape, igraph, reshape2 and phangorn
+
+```{r set-options,include=FALSE}
+library("knitr")
+knitr::opts_chunk$set(echo = TRUE)
+options(width = 1800)
+
+library(ape, quietly=TRUE)
+library(igraph, quietly=TRUE)
+library(reshape2, quietly=TRUE)
+library(phangorn, quietly=TRUE)
+
+
+## ------------Functions------------------
+
+## Given a tree and a node (node index), 
+## return a list of indexes of the node's leaves (a recursive function)
+node.tips<-function (tree, node){
+  n <- Ntip(tree)    # number of leaves, also the last index of the leaves
+  if (node <= n){
+      # Because node numbering of a tree 
+      # starts with all the leaves first and the internal nodes 
+      # starting from the root, it is a leave
+      # return the index
+      node
+  }
+  else{
+      # for an internal node
+      l<- numeric()
+      # get all edges connecting from the node to children nodes
+      d<- tree$edge[which(tree$edge[,1]==node),2]
+       for(j in d){
+          if(j <= n){
+            # a leave, add it to a list
+            l <- c(l, j)
+          }
+          else{
+            # an internal node, goes down to another recursion
+            l<-c(l, node.tips(tree,j))
+          }
+      }
+       l
+   }
+}
+
+## Given a node, tree, and distance matrix,
+## return median pairwise distance (MPWD) of the node's leaves
+get.node.leaf.MPWD <- function(node,tree,distmat){
+  ## get indexes of all tips under a node (internal node)
+  nlist <- node.tips(tree,node)  
+  foo <- distmat[nlist,nlist]
+  return(median(foo[upper.tri(foo,diag=FALSE)]))
+}
+
+
+## Given a tree and a distance matrix of leave nodes
+## return a vector containing the median pairwise distance 
+## of the subtree under each internal node
+mpwd.clusttree <- function(tree, distmatrix){
+  distmat0 <- as.matrix(distmatrix)
+  # get pairwise distances between leaves (sequences)
+  distmat <- distmat0[tree$tip.label,tree$tip.label]
+
+  ntips<- Ntip(tree)                  # number of tips
+  nint <- Nnode(tree)                 # number of nodes
+  
+  # node numbering of a tree starts with all the leaves first 
+  # and the internal nodes starting from the root
+  # so the index of a first internal node is ntips+1 
+  # the index of a last internal node is ntips+nint
+  # therefore, indexes of all internal nodes are
+  # ntips+1:ntips+nint
+   return(sapply((ntips+1):(ntips+nint),get.node.leaf.MPWD,tree,distmat))
+}
+
+
+## Given a tree, a threshold or maximum MPWD of a subtree and a distance matrix 
+## return a vector indicating, for each node, which cluster the node belongs to
+## These functions were borrowed from 
+## https://www.r-bloggers.com/finding-meaningful-clusters-in-phylogenetic-trees-or-other-hierarchical-clusterings/
+## Instead of using patiristic distances, the modified codes here use pairwise distances
+clustering <- function (tree, thresh,distmatrix){
+  ## a vector of MPWD of leaves of all internal nodes
+  distvec <- mpwd.clusttree(tree, distmatrix) 
+
+  ## set up clustering
+  ntips<-Ntip(tree)
+  nint <- Nnode(tree)
+  cnum <- 0                                  ## cluster id
+  assign <- rep(0,ntips+nint)                ## cluster assignment
+  
+  ## tree in igraph form (we need to use igraph for depth first search of the tree)
+  igraph.tree <- graph.edgelist(tree$edge) 
+  
+  ## to retrieve nodes in the DFS order starting from the root
+  dfs <- graph.dfs(igraph.tree,root=ntips+1,neimode='out',order=TRUE,dist=TRUE)                  
+                   
+  ## traverse the tree in depth first order
+  for(i in 1:length(dfs$order)){
+    node <- dfs$order[i]
+    ## skip leaves
+    if(node <= ntips){ next }
+    
+    ## If the node's subtree is below the threshold, mark it and
+    ## its subtree as members of a new cluster
+    ## node-ntips --> node numbering of a tree starts with all the leaves first 
+    ## and the internal nodes starting from the root
+    ## but the distvec contains only MPPD to leaves of internal nodes
+    if(distvec[node-ntips]<=thresh && assign[node] == 0){
+      cnum <- cnum+1
+      subtree <- graph.dfs(igraph.tree,node,
+                           neimode='out',unreachable=FALSE)$order
+      subtree <- subtree[!is.na(subtree)]
+      assign[subtree] <- cnum
+    }
+  }
+  clusteringResults <- list(membership=assign, allcsize=table(assign),
+              membershipJustLeaves=assign[1:ntips], leafclustsize=table(assign[1:ntips]),
+              ntips=ntips,threshold=thresh)
+
+  return(clusteringResults)
+}
+
+## Number of clusters = number of leaves with clid 0 (singleton) +
+##                      number of unique clids
+num_clusters <- function (dat){
+  # a leave with clid =0 is a sigleton; count each one as a cluster
+  return (nrow(dat[dat$clid == 0, ]) + length(unique(dat$clid[dat$clid != 0])))
+}
+
+
+## For each cluster, select one per country
+choose_seq_one_per_country <- function(dat){
+  ## include all singletons
+  dat1 <- dat[dat$clid == 0, ]
+  clidlist <- unique(dat$clid[dat$clid != 0])
+  
+  for(clid in clidlist){
+    regions <- unique(dat[dat$clid == clid, "ISOCode"])
+    for(r in regions){
+       dat1 <- rbind(dat1, dat[dat$clid == clid & dat$ISOCode == r, ][1,])
+    }
+  }
+  return (dat1)
+}
+
+## Distribution of pairwise distances 
+pairwise_dist_distribution <- function (distmatrix){
+  distmatrix <- as.matrix(distmatrix)
+  dtable <- melt(distmatrix)[melt(upper.tri(distmatrix))$value,]
+  names(dtable) <- c("s1", "s2", "distance")
+  numpairs <- nrow(dtable)
+  mycaption <- paste(s, ": ", numseqs, " sequences, ", numpairs, " pairs", sep="")
+  hist(dtable$distance, main=mycaption, xlab="pairwise distance", ylab="number of sequence pairs")
+  qu<-quantile(dtable$distance, c(.25, .45, .47, .48, .49, .5, .75))
+  print(qu)
+}
+
+## Save a tree in .tre abd .pdf
+save_tree<-function(tree, s){
+  ## Save it in Newick format
+  treefile <- paste(outdir, "/", s, ".tre", sep="")
+  write.tree(tree, file=treefile)
+  ## Save it as a pdf
+  pdffile <- paste(outdir, "/", s, ".pdf", sep="")
+  pdf(file=pdffile)
+  plot(tree, cex=0.4, type="phylogram")
+  add.scale.bar(cex = 0.7, font = 2, col = "red", lcol="red")
+  dev.off()
+}
+
+##' commandArgs parsing
+##' 
+##' return a named list of command line arguments
+##'
+##' Usage:
+##' call the R script thus
+##'   ./myfile.R --args myarg=something
+##' or
+##'   R CMD BATCH --args myarg=something myfile.R
+##'
+##' Then in R do
+##'   myargs <- getArgs()
+##' and myargs will be a named list
+##' > str(myargs)
+##' List of 2
+##' $ file : chr "myfile.R"
+##' $ myarg: chr "something"
+##'
+##' @title getArgs
+##' @param verbose print verbage to screen 
+##' @param defaults a named list of defaults, optional
+##' @return a named list
+##' @author Chris Wallace
+getArgs <- function(verbose=FALSE, defaults=NULL) {
+  myargs <- gsub("^--","",commandArgs(TRUE))
+  setopts <- !grepl("=",myargs)
+  if(any(setopts))
+    myargs[setopts] <- paste(myargs[setopts],"=notset",sep="")
+  myargs.list <- strsplit(myargs,"=")
+  myargs <- lapply(myargs.list,"[[",2 )
+  names(myargs) <- lapply(myargs.list, "[[", 1)
+
+  ## logicals
+  if(any(setopts))
+    myargs[setopts] <- TRUE
+
+  ## defaults
+  if(!is.null(defaults)) {
+    defs.needed <- setdiff(names(defaults), names(myargs))
+    if(length(defs.needed)) {
+      myargs[ defs.needed ] <- defaults[ defs.needed ]
+    }
+  }
+
+  ## verbage
+  if(verbose) {
+    cat("read",length(myargs),"named args:\n")
+    print(myargs)
+  }
+  myargs
+}
+```
+
+## Analysis
+
+#### Processing command-line input
+
+```{r echo=FALSE}
+## input and default values
+fastadir = "in.fasta"
+outdir = "out.trees"
+pwd_rank_cutoff <- 0.47
+summaryfile <- "results.summary.txt"
+
+## clustering is performed only for the trees with median PWD (MPWD) >= "minPWD". 
+minPWD = 0.015
+
+## read in from command-line
+args <- getArgs(defaults=list(fastadir=fastadir, outdir=outdir, pwd_rank_cutoff=pwd_rank_cutoff))
+fastadir <- args$fastadir
+outdir <- args$outdir
+pwd_rank_cutoff <- as.numeric(args$pwd_rank_cutoff)
+
+cat("\tfastadir: ", fastadir, "\n")
+cat("\toutdir: ", outdir, "\n")
+cat("\tpwd_rank_cutoff: ", pwd_rank_cutoff, "\n")
+
+if(!file.exists(fastadir)){
+    cat("Error!! fastadir ", fastadir, " doesn't exist")
+    knitr::knit_exit()
+}
+
+## if the outdir doesn't exists, create one
+dir.create(file.path(".", outdir), showWarnings = FALSE)
+```
+
+
+#### Processing input sequence files
+
+```{r echo=FALSE}
+fastafiles <- list.files(fastadir)
+numfiles <- length(fastafiles)
+subtypes <- sub(".txt","", fastafiles)
+numsubtypes <- length(subtypes)
+cat("No. fasta files: ", numfiles)
+cat("No. subtypes: ", numsubtypes)
+
+# For saving overall clustering results for each subtype/CRF
+results <- data.frame(Subtype = character(), NumSeqs = numeric(),
+                      NumCountries = numeric(), PWDCutOff = numeric(),
+                      NumCluster = numeric(), NumSelected = numeric(), 
+                      stringsAsFactors =FALSE)
+
+i<-0
+for(fastafile in fastafiles){
+    s <- sub(".txt","", fastafile)
+    cat("Subtype: ", s,"\n")
+    
+    fastafilepath = paste(fastadir, "/", fastafile, sep="") 
+    seqdata <- read.dna(file=fastafilepath, format = "fasta", as.matrix=TRUE)
+    numseqs <- nrow(seqdata)
+    cat("no. sequences: ", numseqs,"\n")
+    # Can't create a tree for subtype/CRF with <=3 sequences 
+    if(numseqs <=3) {next}
+    
+    # Convert sequence names to a data.frame
+    seqnames <- rownames(seqdata)
+    d <- as.data.frame(matrix(unlist(strsplit(seqnames, "[.]")), ncol=4,byrow=TRUE))
+    colnames(d) <- c("Accession", "ISOCode", "Year", "Subtype")
+    
+    numcountries <- length(unique(d$ISOCode))
+    cat("no. countries: ", numcountries,"\n")
+    
+    # Create a pairwise distance (PWD) matrix using TN93 evloution model
+    # to get the distribution of PWDs 
+    distmatrix <- dist.dna(seqdata, model="TN93", pairwise.deletion = TRUE)
+    pairwise_dist_distribution(distmatrix)
+    
+    # Create a NJ tree 
+    tree <- NJ(distmatrix)
+    # Root at the midpoint of the longest path between any two tips
+    tree <- midpoint(tree)      
+    # For some branches, the length can be negative.
+    # Change to zero for branches with a negative length (as recommended) 
+    tree$edge.length[tree$edge.length < 0] <- 0
+    # Plot the tree  
+    maintext <- paste("subtype ",s, ": ", numseqs, " sequences", sep="")
+    plot(tree, cex=0.7, main=maintext)
+    #nodelabels()
+    add.scale.bar(cex = 0.7, font = 2, col = "red", lcol="red")
+    
+    save_tree(tree, s)
+
+    if(median(distmatrix) < minPWD){ next}
+    
+    # The MPWD at the rank of "pwd_rank_cutoff"
+    cluster_pwd_cutoff <- quantile(distmatrix, c(pwd_rank_cutoff))
+    cat("PWD at the rank of ", pwd_rank_cutoff,": ", cluster_pwd_cutoff,"\n")
+    
+    # Identify subtrees (clusters) of sequences of which their median PWD < cluster_pwd_cutoff 
+    # and assign a cluster id number to each sequence belonging to a same cluster
+    subtrees <- clustering(tree,cluster_pwd_cutoff,distmatrix)
+  
+    ## Add cluster ids to at the begining of sequence labels in the tree
+    treeWithClusterIDs <- tree
+    treeWithClusterIDs$tip.label <- subtrees$membershipJustLeaves
+    plot(treeWithClusterIDs, cex=0.6, main=paste("threshold",  cluster_pwd_cutoff, sep=' '))
+    add.scale.bar(cex = 0.7, font = 2, col = "red", lcol="red")
+    treefile <- paste(outdir, "/", s, "_", pwd_rank_cutoff, ".tre", sep="")
+    write.tree(treeWithClusterIDs, file=treefile)
+
+    d$clid <- subtrees$membershipJustLeaves
+    d$seqid <- tree$tip.label
+    
+    ## Choose one per country per cluster
+    numclusters <- num_clusters(d)
+    cat("no. clusters: ", numclusters, "\n")
+    d0<- choose_seq_one_per_country(d)
+    numchosen <- nrow(d0)
+    cat("no. sequences sampled: ", numchosen,"\n")
+  
+    ## Save the sampled sequences in a fasta file
+    fname <- paste(outdir, "/", s, "_", pwd_rank_cutoff, ".txt", sep="")
+    write.dna(seqdata[as.character(d0$seqid),], file=fname, format='fasta', colsep='')
+    
+    i <- i+1
+    results[i,] <- c(s,numseqs,numcountries,cluster_pwd_cutoff,numclusters, numchosen)
+    cat("\n\n\n\n")
+}
+
+results <- results[order(results$Subtype, decreasing = FALSE), ]
+write.table(results, file=summaryfile, sep="\t", row.names=FALSE, quote=FALSE)
+
+```
+
+
