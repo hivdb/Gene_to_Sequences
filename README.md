@@ -15,6 +15,11 @@ as the second part of the pipeline, it performs an amino acid to nucleotide sequ
 and generates a file containing aligned full-length nucleotide sequences with associated GenBank annotations
 including AccessionID, Title, Authors, PubMedID, Country, Collection_Date and TaxonomyID
 
+3. Subtree_Sampling.Rmd 
+samples subtype reference sequences from subtrees of a phylogenetic tree  
+[Usage guidelines for this R markdown](doc/Subtree_Sampling.md)
+
+
 ## Prerequisites
 
 * [NCBI blast+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
@@ -38,11 +43,6 @@ perl GB_to_BLASTDB.pl --man
 perl Gene_to_Sequences.pl --man
 
 ``` 
-
-
-3. Subtree_Sampling.Rmd 
-samples subtype reference sequences from subtrees of a phylogenetic tree  
-[Usage guidelines for this R markdown](doc/Subtree_Sampling.md)
 
 
 ## Authors
