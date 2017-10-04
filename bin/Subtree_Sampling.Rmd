@@ -6,7 +6,11 @@ output: html_document
 ---
 ## Overviews
 
-This R script has been described in the manuscript by Rhee, S-Y and Shafer, RW, "Geographically-Stratified Representative HIV-1 Group M pol Subtype and Circulating Recombinant Form Sequences". For each fasta sequence file in a given directory, this script performs the followings: (1) calculates TN93 pairwise distances (PWDs);  (2) creates a neighbor joining tree with the PWD matrix and roots it at the midpoint; (3) traverses the tree from the root to leaves and partitioned it into subtrees having a local median PWD (MPWD) less than a cutoff; (4) then selects one sequence per country from each subtree. In the manuscript, 47% (0.47) of the ranked PWDs was used to define the maximum MPWD for subtrees.
+For each fasta sequence file in a given directory, perform the following: 
+(1) calculate TN93 pairwise distances (PWDs);  (2) create a neighbor joining tree with the PWD matrix and root it at the midpoint; (3) traverse the tree from the root to the leaves and partition it into subtrees having a local median PWD (MPWD) less than a cutoff; (4) select one sequence per country from each subtree. 
+
+This R script is described in Rhee, S-Y and Shafer, RW (2017), "Geographically-Stratified Representative HIV-1 Group M pol Subtype and Circulating Recombinant Form Sequences," manuscript submitted for publication. In the manuscript, the maximum MPWD for the subtrees was defined as the 47-th percentile of the ranked PWDs.
+
 
 #### Usage
 
@@ -22,7 +26,8 @@ Rscript -e "rmarkdown::render('Subtree_Sampling.Rmd')" fastadir="in.fasta", outd
 
 2. outdir ("out.trees" by default): directory for saving output files including .tre, .pdf, and .txt of sampled sequences
 
-3. pwd_rank_cutff(0.47 by default): a node of which a local MPWD (MPWD of the node's children) is less than the global MPWD at the rank of this cutoff defined as a cluster (subtree)
+3. pwd_rank_cutoff(0.47 by default): the percentile rank of the pairwise distance used as the cutoff value. The clusters are found while traversing from the root to the leaves, such that the the local MPWD (MPWD of the node's children) is less than this cutoff. The sequence space becomes partitioned by the clusters.
+
 
 #### Output
 
