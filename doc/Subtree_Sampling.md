@@ -31,7 +31,7 @@ Notes: example fasta files are available at doc/in.fasta
 
 2. outdir ("out.trees" by default): directory for saving output files including .tre, .pdf, and .txt of sampled sequences
 
-3. pwd_rank_cutff(0.47 by default): the percentile rank of the pairwise distance used as the cutoff value. The clusters are found while traversing from the root to the leaves, such that the the local MPWD (MPWD of the node's children) is less than this cutoff. The sequence space becomes partitioned by the clusters.
+3. pwd_rank_cutoff (0.47 by default): the percentile rank of the pairwise distance used as the cutoff value. The clusters are found while traversing from the root to the leaves, such that the the local MPWD (MPWD of the node's children) is less than this cutoff. The sequence space becomes partitioned by the clusters.
 
 
 
