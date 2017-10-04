@@ -20,7 +20,7 @@ To run the script using the default parameters
 
 Rscript -e "rmarkdown::render('Subtree_Sampling.Rmd')"  
 
-Rscript -e "rmarkdown::render('Subtree_Sampling.Rmd')" fastadir="in.fasta", outdir="out.trees", pwd_rank_cutff=0.47
+Rscript -e "rmarkdown::render('Subtree_Sampling.Rmd')" fastadir="in.fasta", outdir="out.trees", pwd_rank_cutoff=0.47
 
 
 
@@ -45,7 +45,7 @@ Files generated in outdir for each subtype:
 
 3. a tree of the entire sequences (.tre) (.pdf)
 
-4. a tree of the entire sequences with cluster ids defined by a cutoff (.tre)
+4. a tree of the entire sequences annotated with cluster ids defined by a cutoff (.tre)
 
 5. a fasta sequence file containing sampled sequences (.txt)
 

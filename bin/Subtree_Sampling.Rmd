@@ -18,7 +18,7 @@ To run the script using the default parameters
 
 Rscript -e "rmarkdown::render('Subtree_Sampling.Rmd')"  
 
-Rscript -e "rmarkdown::render('Subtree_Sampling.Rmd')" fastadir="in.fasta", outdir="out.trees", pwd_rank_cutff=0.47
+Rscript -e "rmarkdown::render('Subtree_Sampling.Rmd')" fastadir="in.fasta", outdir="out.trees", pwd_rank_cutoff=0.47
 
 #### Input and the default values
 
