@@ -2,7 +2,9 @@
 
 Gene search pipeline for retrieving gene-coding nucelotide sequences and annotations from a local GenBank database.
 
-This package has been described in  the manuscript by Rhee, S-Y and Shafer, RW, "Geographically-Stratified Representative HIV-1 Group M pol Subtype and Circulating Recombinant Form Sequences".
+
+This package is described in Rhee, S-Y and Shafer, RW (2017), "Geographically-Stratified Representative HIV-1 Group M pol Subtype and Circulating Recombinant Form Sequences," manuscript submitted for publication.
+
 
 The package includes:
 

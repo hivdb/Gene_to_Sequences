@@ -26,7 +26,8 @@ Rscript -e "rmarkdown::render('Subtree_Sampling.Rmd')" fastadir="in.fasta", outd
 
 ## Input and the default values
 
-1. fastadir ("in.fasta" by default): directory where fasta sequence files are located. The name of each fasta file consists of subtype + ".txt". ie, 01_AE.txt, B.txt. The name of each sequence in a fasta file consists of sequenceid (in this case, accessionid), country (in two letter ISO code), collection year (YY), subtype delimited by "." Notes: example fasta files are available at doc/in.fasta
+1. fastadir ("in.fasta" by default): directory where fasta sequence files are located. The name of each fasta file consists of subtype + ".txt". ie, 01_AE.txt, B.txt. The name of each sequence in a fasta file consists of sequenceid (in this case, accessionid), country (in two letter ISO code), collection year (YY), subtype delimited by ".". 
+Notes: example fasta files are available at doc/in.fasta
 
 2. outdir ("out.trees" by default): directory for saving output files including .tre, .pdf, and .txt of sampled sequences
 
